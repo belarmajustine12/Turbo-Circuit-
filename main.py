@@ -94,7 +94,7 @@ base_opp_speed = 4
 
 score = 0
 lap_start_time = time.time()
-last_score_second = 0  # ✅ Inayos: kulang ito kanina
+last_score_second = 0
 leaderboard = []
 track_sections = ["Start/Finish", "Straightaway", "Sharp Turn", "Tunnel", "Final Straight"]
 clock = pygame.time.Clock()
@@ -126,7 +126,6 @@ def check_collision(obj1_x, obj1_y, w1, h1, obj2_x, obj2_y, w2, h2):
             obj1_y + h1 > obj2_y)
 
 # === DRAWING FUNCTIONS ===
-# ✅ Inayos: kulang ang mga drawing functions at colors kanina
 PINK = (255, 180, 200)
 PALE_PINK = (255, 220, 230)
 HOT_PINK = (255, 100, 150)
@@ -155,13 +154,11 @@ while running:
     screen.fill(GRAY)
     pygame.draw.rect(screen, ROAD_COLOR, (50, 0, WIDTH - 100, HEIGHT))
     
-    # Draw road lines
     distance_lines += car_speed
     for i in range(-100, HEIGHT, 80):
         line_y = (i + distance_lines) % HEIGHT
         pygame.draw.rect(screen, LINE_COLOR, (WIDTH // 2 - 3, line_y, 6, 40))
     
-    # Events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -189,7 +186,6 @@ while running:
             if event.key == pygame.K_q:
                 running = False
     
-    # GAME ACTIVE
     if game_active:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT] and car_x > 86:
@@ -201,20 +197,17 @@ while running:
         if keys[pygame.K_DOWN] and car_y < HEIGHT - car_height - 8:
             car_y += car_speed
 
-        # Persistent score: +1 for each second survived
         elapsed = time.time() - lap_start_time
         whole_seconds = int(elapsed)
         if whole_seconds > last_score_second:
             score += whole_seconds - last_score_second
             last_score_second = whole_seconds
 
-        # Spawn objects
         if random.randint(0, 100) < 4:
             spawn_opponent()
         if random.randint(0, 400) < 2:
             spawn_upgrade()
 
-        # Update opponents
         for opp in opponents[:]:
             opp["y"] += opp["speed"]
             if opp["y"] > HEIGHT:
@@ -235,7 +228,6 @@ while running:
                 lap_count += 1
                 break
 
-        # Update upgrades
         for item in upgrade_items[:]:
             item["y"] += 3
             if item["y"] > HEIGHT:
@@ -247,13 +239,11 @@ while running:
                 score += 20
                 upgrade_items.remove(item)
 
-        # Unlock tracks
         if score >= 50:
             unlock_track("Speedway Circuit")
         if score >= 150:
             unlock_track("Mountain Pass")
 
-        # Draw cars and upgrade tokens
         draw_car(car_x, car_y, PINK, car_width, car_height, True)
         for opp in opponents:
             draw_car(opp["x"], opp["y"], OPPONENT_COLOR, OPP_WIDTH, OPP_HEIGHT)
@@ -262,7 +252,6 @@ while running:
                                (int(item["x"] + 15), int(item["y"] + 15)), 15)
             draw_text("+", item["x"] + 8, item["y"] + 3, DARK_PINK, font)
 
-        # Pink HUD cards
         pygame.draw.rect(screen, PALE_PINK, (10, 108, 190, 105), border_radius=12)
         pygame.draw.rect(screen, PALE_PINK, (WIDTH - 205, 108, 195, 105), border_radius=12)
         draw_text(f"SCORE: {score}", 23, 119, HOT_PINK)
@@ -280,7 +269,6 @@ while running:
                   88, HEIGHT - 27, WHITE, small_font)
 
     else:
-        # GAME OVER SCREEN
         pygame.draw.rect(screen, PALE_PINK, (30, 130, WIDTH - 60, HEIGHT - 160),
                          border_radius=24)
         pygame.draw.rect(screen, HOT_PINK, (30, 130, WIDTH - 60, HEIGHT - 160),
