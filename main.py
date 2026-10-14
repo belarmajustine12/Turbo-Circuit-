@@ -2,6 +2,7 @@ import pygame
 import time
 import random
 
+# === SORTING FUNCTIONS ===
 def bubble_sort(lap_times):
     n = len(lap_times)
     for i in range(n):
@@ -40,6 +41,7 @@ def traverse_circuit(sections, index=0):
 def get_start_position():
     return (250, 500)
 
+# === GAME DATA ===
 unlocked_tracks = set()
 achievements = set()
 
@@ -64,11 +66,13 @@ def update_racer_time(time_seconds):
         racer["best_time"] = time_seconds
     racer["championship_points"] += max(100 - int(time_seconds), 10)
 
+# === PYGAME SETUP ===
 pygame.init()
 WIDTH, HEIGHT = 600, 700
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("TURBO CIRCUIT — Group 6")
 
+# COLORS
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (220, 50, 50)
@@ -78,6 +82,7 @@ GRAY = (60, 60, 60)
 ROAD_COLOR = (80, 80, 80)
 LINE_COLOR = (255, 255, 0)
 
+# CAR & GAME SETTINGS
 start_pos = get_start_position()
 car_x, car_y = start_pos
 car_width, car_height = 50, 80
@@ -89,6 +94,7 @@ base_opp_speed = 4
 
 score = 0
 lap_start_time = time.time()
+last_score_second = 0  # ✅ Inayos: kulang ito kanina
 leaderboard = []
 track_sections = ["Start/Finish", "Straightaway", "Sharp Turn", "Tunnel", "Final Straight"]
 clock = pygame.time.Clock()
@@ -98,6 +104,7 @@ lap_count = 0
 distance_lines = 0
 upgrade_items = []
 
+# === FUNCTIONS ===
 def spawn_opponent():
     lanes = [100, 200, 300, 400, 500]
     lane = random.choice(lanes)
@@ -118,15 +125,43 @@ def check_collision(obj1_x, obj1_y, w1, h1, obj2_x, obj2_y, w2, h2):
             obj1_y < obj2_y + h2 and
             obj1_y + h1 > obj2_y)
 
+# === DRAWING FUNCTIONS ===
+# ✅ Inayos: kulang ang mga drawing functions at colors kanina
+PINK = (255, 180, 200)
+PALE_PINK = (255, 220, 230)
+HOT_PINK = (255, 100, 150)
+DARK_PINK = (200, 60, 100)
+UPGRADE_COLOR = (100, 200, 100)
+TEXT_COLOR = (60, 60, 60)
+OPPONENT_COLOR = (220, 50, 50)
+
+font = pygame.font.Font(None, 36)
+small_font = pygame.font.Font(None, 28)
+title_font = pygame.font.Font(None, 48)
+big_font = pygame.font.Font(None, 60)
+
+def draw_text(text, x, y, color=TEXT_COLOR, font_type=font):
+    surface = font_type.render(text, True, color)
+    screen.blit(surface, (x, y))
+
+def draw_car(x, y, color, w, h, is_player=False):
+    pygame.draw.rect(screen, color, (x, y, w, h), border_radius=8)
+    if is_player:
+        pygame.draw.rect(screen, WHITE, (x + 10, y + 15, w - 20, 20))
+        pygame.draw.rect(screen, WHITE, (x + 10, y + 45, w - 20, 20))
+
+# === MAIN GAME LOOP ===
 while running:
     screen.fill(GRAY)
     pygame.draw.rect(screen, ROAD_COLOR, (50, 0, WIDTH - 100, HEIGHT))
     
+    # Draw road lines
     distance_lines += car_speed
     for i in range(-100, HEIGHT, 80):
         line_y = (i + distance_lines) % HEIGHT
         pygame.draw.rect(screen, LINE_COLOR, (WIDTH // 2 - 3, line_y, 6, 40))
     
+    # Events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -135,6 +170,7 @@ while running:
                 game_active = True
                 score = 0
                 lap_start_time = time.time()
+                last_score_second = 0
                 opponents.clear()
                 upgrade_items.clear()
                 car_x, car_y = start_pos
@@ -153,99 +189,122 @@ while running:
             if event.key == pygame.K_q:
                 running = False
     
+    # GAME ACTIVE
     if game_active:
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT] and car_x > 60:
+        if keys[pygame.K_LEFT] and car_x > 86:
             car_x -= car_speed
-        if keys[pygame.K_RIGHT] and car_x < WIDTH - 60 - car_width:
+        if keys[pygame.K_RIGHT] and car_x < WIDTH - 86 - car_width:
             car_x += car_speed
-        if keys[pygame.K_UP] and car_y > 10:
+        if keys[pygame.K_UP] and car_y > 108:
             car_y -= car_speed
-        if keys[pygame.K_DOWN] and car_y < HEIGHT - car_height - 10:
+        if keys[pygame.K_DOWN] and car_y < HEIGHT - car_height - 8:
             car_y += car_speed
-        
+
+        # Persistent score: +1 for each second survived
+        elapsed = time.time() - lap_start_time
+        whole_seconds = int(elapsed)
+        if whole_seconds > last_score_second:
+            score += whole_seconds - last_score_second
+            last_score_second = whole_seconds
+
+        # Spawn objects
         if random.randint(0, 100) < 4:
             spawn_opponent()
         if random.randint(0, 400) < 2:
             spawn_upgrade()
-        
+
+        # Update opponents
         for opp in opponents[:]:
             opp["y"] += opp["speed"]
             if opp["y"] > HEIGHT:
                 opponents.remove(opp)
                 score += 15
-            if check_collision(car_x, car_y, car_width, car_height,
-                              opp["x"], opp["y"], OPP_WIDTH, OPP_HEIGHT):
+                add_achievement("Opponent Dodger")
+            elif check_collision(car_x, car_y, car_width, car_height,
+                                 opp["x"], opp["y"], OPP_WIDTH, OPP_HEIGHT):
                 game_active = False
                 lap_time = time.time() - lap_start_time
-                new_entry = {"name": f"Racer{lap_count + 1}", "time": lap_time}
+                new_entry = {
+                    "name": f"Player Run {lap_count + 1}",
+                    "time": lap_time,
+                    "score": score
+                }
                 insertion_sort(leaderboard, new_entry)
                 update_racer_time(lap_time)
                 lap_count += 1
-        
+                break
+
+        # Update upgrades
         for item in upgrade_items[:]:
             item["y"] += 3
             if item["y"] > HEIGHT:
                 upgrade_items.remove(item)
-            elif not item["collected"] and check_collision(
-                car_x, car_y, car_width, car_height,
-                item["x"], item["y"], 30, 30
-            ):
-                item["collected"] = True
+            elif check_collision(car_x, car_y, car_width, car_height,
+                                 item["x"], item["y"], 30, 30):
                 upgrades[item["type"]] += 1
                 add_achievement(f"Got {item['type']} boost!")
                 score += 20
-        
-        elapsed = time.time() - lap_start_time
-        score = int(elapsed * 10)
-        
-        pygame.draw.rect(screen, BLUE, (car_x, car_y, car_width, car_height), border_radius=8)
-        pygame.draw.rect(screen, WHITE, (car_x + 10, car_y + 15, 30, 15))
-        
-        for opp in opponents:
-            pygame.draw.rect(screen, RED, (opp["x"], opp["y"], OPP_WIDTH, OPP_HEIGHT), border_radius=8)
-        
-        for item in upgrade_items:
-            if not item["collected"]:
-                pygame.draw.circle(screen, GREEN, (item["x"] + 15, item["y"] + 15), 15)
-        
-        font = pygame.font.Font(None, 36)
-        screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
-        screen.blit(font.render(f"Laps: {racer['total_laps']}", True, WHITE), (10, 45))
-        if racer["best_time"]:
-            screen.blit(font.render(f"Best: {racer['best_time']:.2f}s", True, WHITE), (10, 80))
-        screen.blit(font.render(f"Points: {racer['championship_points']}", True, WHITE), (WIDTH - 150, 10))
-        
-        if score >= 50 and "Speedway" not in unlocked_tracks:
+                upgrade_items.remove(item)
+
+        # Unlock tracks
+        if score >= 50:
             unlock_track("Speedway Circuit")
-        if score >= 150 and "Mountain Pass" not in unlocked_tracks:
+        if score >= 150:
             unlock_track("Mountain Pass")
+
+        # Draw cars and upgrade tokens
+        draw_car(car_x, car_y, PINK, car_width, car_height, True)
+        for opp in opponents:
+            draw_car(opp["x"], opp["y"], OPPONENT_COLOR, OPP_WIDTH, OPP_HEIGHT)
+        for item in upgrade_items:
+            pygame.draw.circle(screen, UPGRADE_COLOR,
+                               (int(item["x"] + 15), int(item["y"] + 15)), 15)
+            draw_text("+", item["x"] + 8, item["y"] + 3, DARK_PINK, font)
+
+        # Pink HUD cards
+        pygame.draw.rect(screen, PALE_PINK, (10, 108, 190, 105), border_radius=12)
+        pygame.draw.rect(screen, PALE_PINK, (WIDTH - 205, 108, 195, 105), border_radius=12)
+        draw_text(f"SCORE: {score}", 23, 119, HOT_PINK)
+        draw_text(f"Runs: {racer['total_laps']}", 23, 153)
+        best_label = f"Best: {racer['best_time']:.1f}s" if racer["best_time"] is not None else "Best: --"
+        draw_text(best_label, 23, 184, TEXT_COLOR, small_font)
+
+        draw_text("CHAMPIONSHIP", WIDTH - 192, 119, DARK_PINK, small_font)
+        draw_text(f"{racer['championship_points']} points", WIDTH - 192, 149, HOT_PINK)
+        draw_text(f"Upgrades: {sum(upgrades.values())}", WIDTH - 192, 181, DARK_PINK, small_font)
+
+        draw_text("TURBO CIRCUIT", 165, 17, DARK_PINK, title_font)
+        draw_text("♡ PINK EDITION ♡", 215, 62, DARK_PINK, small_font)
+        draw_text("Survive +1/sec  |  Dodge +15  |  Upgrade +20",
+                  88, HEIGHT - 27, WHITE, small_font)
+
     else:
-        big_font = pygame.font.Font(None, 72)
-        small_font = pygame.font.Font(None, 36)
-        
-        over = big_font.render("RACE FINISHED!", True, GREEN)
-        restart = small_font.render("R = Restart  L = Leaderboard  Q = Quit", True, WHITE)
-        final_score = small_font.render(f"Final Score: {score}", True, WHITE)
-        
-        screen.blit(over, (WIDTH // 2 - 210, HEIGHT // 2 - 100))
-        screen.blit(final_score, (WIDTH // 2 - 110, HEIGHT // 2 - 20))
-        screen.blit(restart, (WIDTH // 2 - 260, HEIGHT // 2 + 60))
-        
-        y_pos = HEIGHT // 2 + 130
-        screen.blit(small_font.render("TOP TIMES:", True, WHITE), (WIDTH // 2 - 90, y_pos - 30))
-        sorted_board = bubble_sort(leaderboard.copy())[:5]
+        # GAME OVER SCREEN
+        pygame.draw.rect(screen, PALE_PINK, (30, 130, WIDTH - 60, HEIGHT - 160),
+                         border_radius=24)
+        pygame.draw.rect(screen, HOT_PINK, (30, 130, WIDTH - 60, HEIGHT - 160),
+                         width=4, border_radius=24)
+
+        draw_text("RACE FINISHED!", 95, 157, HOT_PINK, big_font)
+        draw_text(f"Final Score: {score}", 160, 225, DARK_PINK, title_font)
+        draw_text(f"Championship Points: {racer['championship_points']}",
+                  95, 278, DARK_PINK, font)
+        draw_text(f"Total Runs: {racer['total_laps']}", 190, 315)
+        if racer["best_time"] is not None:
+            draw_text(f"Best Time: {racer['best_time']:.2f}s", 180, 350)
+
+        draw_text("TOP LAP TIMES", 205, 395, HOT_PINK, font)
+        sorted_board = bubble_sort(leaderboard)[:5]
         for i, entry in enumerate(sorted_board):
-            text = small_font.render(f"{i + 1}. {entry['name']}: {entry['time']:.2f}s", True, WHITE)
-            screen.blit(text, (WIDTH // 2 - 100, y_pos + i * 35))
-    
+            draw_text(f"{i + 1}. {entry['name']}: {entry['time']:.2f}s",
+                      145, 430 + i * 27, DARK_PINK, small_font)
+
+        draw_text("R = Restart", 72, 605, HOT_PINK, small_font)
+        draw_text("L = Leaderboard", 225, 605, HOT_PINK, small_font)
+        draw_text("Q = Quit", 420, 605, HOT_PINK, small_font)
+
     pygame.display.flip()
     clock.tick(60)
 
 pygame.quit()
-print("\nRACE SUMMARY")
-print(f"Total Laps: {racer['total_laps']}")
-print(f"Best Time: {racer['best_time']:.2f}s" if racer['best_time'] else "Best Time: N/A")
-print(f"Championship Points: {racer['championship_points']}")
-print(f"Unlocked Tracks: {unlocked_tracks}")
-print(f"Achievements: {achievements}")
